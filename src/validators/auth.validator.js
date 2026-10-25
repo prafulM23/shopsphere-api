@@ -23,3 +23,21 @@ export const validateSignup = ({ name, email, password }) => {
         errors,
     };
 };
+
+export const validateLogin = ({ email, password }) => {
+    const errors = {};
+
+    if (!email || typeof email !== "string" || !email.trim()) {
+        errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        errors.email = "Please enter a valid email address";
+    }
+
+    if (!password || typeof password !== "string" || !password) {
+        errors.password = "Password is required"
+    }
+    return {
+        isValid: Object.keys(errors).length === 0,
+        errors,
+    }
+}
