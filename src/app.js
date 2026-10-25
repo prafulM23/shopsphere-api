@@ -2,6 +2,7 @@ import express from "express";
 import prisma from "./config/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
+import userRoutes from "./routes/user.routes.js";
 const app = express();
 
 // Parse incoming JSON request bodies
@@ -34,7 +35,7 @@ app.get("/api/test-db", async (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-
+app.use("/api/users", userRoutes);
 app.use(errorHandler);
 
 export default app;
