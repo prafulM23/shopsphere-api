@@ -2,6 +2,9 @@
 import bcrypt from "bcryptjs";
 import prisma from "../config/prisma.js";
 import jwt from "jsonwebtoken";
+import { sendOTPEmail } from "./email.service.js";
+import crypto from "node:crypto";
+
 
 export const createUser = async ({ name, email, password }) => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -81,3 +84,98 @@ export const loginUser = async ({ email, password }) => {
     };
 };
 
+
+export const requestPasswordReset = async (email) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+        return;
+    }
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+
+    await prisma.passwordResetOTP.deleteMany({
+        where: { email: normalizedEmail },
+    });
+
+    await prisma.passwordResetOTP.create({
+        data: {
+            email: normalizedEmail,
+            otpHash,
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        },
+    });
+
+    await sendOTPEmail(normalizedEmail, otp);
+};
+
+export const verifyResetOTP = async ({ email, otp }) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const resetRecord = await prisma.passwordResetOTP.findFirst({
+        where: { email: normalizedEmail },
+        orderBy: { createdAt: "desc" },
+    });
+
+    if (!resetRecord || resetRecord.expiresAt < new Date()) {
+        const error = new Error("Invalid or expired OTP");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const isOTPValid = await bcrypt.compare(otp, resetRecord.otpHash);
+
+    if (!isOTPValid) {
+        const error = new Error("Invalid or expired OTP");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return { email: normalizedEmail };
+};
+
+export const resetPassword = async ({ email, otp, newPassword }) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+        const error = new Error("Password must be at least 8 characters long");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const resetRecord = await prisma.passwordResetOTP.findFirst({
+        where: { email: normalizedEmail },
+        orderBy: { createdAt: "desc" },
+    });
+
+    if (!resetRecord || resetRecord.expiresAt < new Date()) {
+        const error = new Error("Invalid or expired OTP");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const isOTPValid = await bcrypt.compare(otp, resetRecord.otpHash);
+
+    if (!isOTPValid) {
+        const error = new Error("Invalid or expired OTP");
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await prisma.$transaction([
+        prisma.user.update({
+            where: { email: normalizedEmail },
+            data: { password: hashedPassword },
+        }),
+        prisma.passwordResetOTP.deleteMany({
+            where: { email: normalizedEmail },
+        }),
+    ]);
+};
