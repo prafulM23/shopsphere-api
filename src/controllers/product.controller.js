@@ -87,28 +87,6 @@ export const createProduct = async (req, res, next) => {
     }
 };
 
-
-
-export const getProducts = async (req, res, next) => {
-    try {
-        const products = await prisma.product.findMany({
-            orderBy: {
-                createdAt: "desc",
-            },
-        });
-
-        return res.status(200).json({
-            success: true,
-            message: "Products fetched successfully",
-            results: products.length,
-            data: { products },
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
-
 export const getProductById = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -179,6 +157,45 @@ export const deleteProduct = async (req, res, next) => {
         return res.status(200).json({
             success: true,
             message: "Product deleted successfully",
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+export const getProducts = async (req, res, next) => {
+    try {
+        const { search, category } = req.query;
+
+        const where = {};
+
+        if (search?.trim()) {
+            where.name = {
+                contains: search.trim(),
+                mode: "insensitive",
+            };
+        }
+
+        if (category?.trim()) {
+            where.category = {
+                equals: category.trim(),
+                mode: "insensitive",
+            };
+        }
+
+        const products = await prisma.product.findMany({
+            where,
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Products fetched successfully",
+            results: products.length,
+            data: { products },
         });
     } catch (error) {
         next(error);
