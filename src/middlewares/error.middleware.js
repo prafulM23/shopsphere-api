@@ -1,14 +1,17 @@
 
 const errorHandler = (err, req, res, next) => {
+    console.error("API ERROR:", err);
 
-    const statusCode = err.statusCode || 500;
+    if (res.headersSent) {
+        return next(err);
+    }
 
-    res.status(statusCode).json({
+    return res.status(err.status || 500).json({
         success: false,
         message:
-            statusCode === 500
-                ? "Internal server error"
-                : err.message,
+            err.status && err.status < 500
+                ? err.message
+                : "Internal server error",
     });
 };
 
