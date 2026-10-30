@@ -1,13 +1,19 @@
 import express from "express";
+import cors from "cors";
 import prisma from "./config/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
 import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
+import cartRoutes from "./routes/cart.routes.js";
 const app = express();
 
 // Parse incoming JSON request bodies
 app.use(express.json());
+
+app.use(cors({
+    origin: "http://localhost:5173",
+}));
 
 // Health check route
 app.get("/", (req, res) => {
@@ -38,6 +44,7 @@ app.get("/api/test-db", async (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/v1/products", productRoutes);
+app.use("/api/v1/cart", cartRoutes);
 app.use(errorHandler);
 
 export default app;
